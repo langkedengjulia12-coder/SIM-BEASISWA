@@ -55,7 +55,7 @@ class CheckRole
         }
 
         if ($userHasAdminLikeRole) {
-            return redirect()->route('simk.dashboard')->with('error', 'Anda tidak memiliki akses ke halaman ini.');
+            return redirect()->route('beasiswa.dashboard')->with('error', 'Anda tidak memiliki akses ke halaman ini.');
         }
 
         return redirect()->route('home')->with('error', 'Anda tidak memiliki akses ke halaman ini.');

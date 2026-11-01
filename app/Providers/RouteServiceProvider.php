@@ -2,8 +2,6 @@
 
 namespace App\Providers;
 
-use App\Models\Kamar;
-use App\Models\Transaksi;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
@@ -19,7 +17,7 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/dashboard';
+    public const HOME = '/';
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.
@@ -28,15 +26,6 @@ class RouteServiceProvider extends ServiceProvider
     {
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-        });
-
-        // Model binding
-        Route::model('transaksi', Transaksi::class);
-        Route::model('kamar', Kamar::class);
-
-        // Implicit model binding with SoftDeletes
-        Route::bind('transaksi', function ($value) {
-            return Transaksi::withTrashed()->findOrFail($value);
         });
 
         $this->routes(function () {

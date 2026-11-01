@@ -36,17 +36,6 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    // Relations
-    public function penyewa()
-    {
-        return $this->hasOne(Penyewa::class);
-    }
-
-    public function notifikasi()
-    {
-        return $this->hasMany(Notifikasi::class);
-    }
-
     // Helpers
     public function isAdmin(): bool
     {

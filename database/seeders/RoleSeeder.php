@@ -41,7 +41,7 @@ class RoleSeeder extends Seeder
         ]);
 
         // ========================================
-        // Role 3: Admin (SIMK Manager)
+        // Role 3: Admin (Beasiswa Manager)
         // ========================================
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $admin->givePermissionTo(Permission::all());
@@ -55,14 +55,19 @@ class RoleSeeder extends Seeder
         ]);
 
         // ========================================
-        // Role 5: Penyewa
+        // Role 5: Mahasiswa
+        // ========================================
+        Role::firstOrCreate(['name' => 'mahasiswa']);
+
+        // ========================================
+        // Role 6: Penyewa
         // ========================================
         $penyewa = Role::firstOrCreate(['name' => 'penyewa']);
         $penyewa->givePermissionTo([
         ]);
 
         // ========================================
-        // Role 6: Public (Read Only)
+        // Role 7: Public (Read Only)
         // ========================================
         $public = Role::firstOrCreate(['name' => 'Public']);
         $public->givePermissionTo([

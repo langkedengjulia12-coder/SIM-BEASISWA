@@ -29,7 +29,11 @@ Route::middleware('auth')->group(function () {
     Route::get('email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
         $request->fulfill();
 
-        return redirect()->intended(route('dashboard'));
+        if ($request->user()->role === 'mahasiswa') {
+            return redirect()->route('mahasiswa.dashboard');
+        }
+
+        return redirect()->intended(route('beasiswa.dashboard'));
     })->middleware(['signed'])->name('verification.verify');
 
     Route::post('email/verification-notification', function (Request $request) {

@@ -33,7 +33,7 @@ class AuthController extends BaseController
         // Revoke existing tokens
         $user->tokens()->delete();
 
-        $token = $user->createToken('simk-token', ['*'], now()->addDays(30))->plainTextToken;
+        $token = $user->createToken('beasiswa-token', ['*'], now()->addDays(30))->plainTextToken;
 
         return $this->success([
             'user'  => $this->formatUser($user),
@@ -63,7 +63,7 @@ class AuthController extends BaseController
             'no_hp'    => $request->no_hp,
         ]);
 
-        $token = $user->createToken('simk-token')->plainTextToken;
+        $token = $user->createToken('beasiswa-token')->plainTextToken;
 
         return $this->created([
             'user'  => $this->formatUser($user),
