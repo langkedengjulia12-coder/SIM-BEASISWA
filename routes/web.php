@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\PartnerController;
+use App\Http\Controllers\Admin\SchemeController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\DisbursementController;
 use App\Http\Controllers\Mahasiswa\DashboardController as MahasiswaDashboardController;
-use App\Http\Controllers\Admin\PartnerController;
-use App\Http\Controllers\Admin\SchemeController;
+use App\Http\Controllers\ReportExportController;
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -76,29 +78,35 @@ Route::middleware(['auth', 'role:admin'])->prefix('beasiswa')->name('beasiswa.')
 
     // 4. Seleksi & Pendaftaran
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications');
-
+    Route::patch('/applications/{application}/review', [ApplicationController::class, 'review'])->name('applications.review');
     // 5. Penyaluran & Rekonsiliasi
     Route::get('/disbursements', [DisbursementController::class, 'index'])->name('disbursements');
+    Route::post('/disbursements/batches', [DisbursementController::class, 'createBatch'])->name('disbursements.batches.store');
+    Route::post('/disbursements/reconcile', [DisbursementController::class, 'importMutations'])->name('disbursements.reconcile');
+    Route::get('/disbursements/batch-template', [DisbursementController::class, 'batchTemplate'])->name('disbursements.batch-template');
+    Route::get('/disbursements/mutation-template', [DisbursementController::class, 'mutationTemplate'])->name('disbursements.mutation-template');
 
     // 6. Pelaporan & Audit
     Route::get('/reports', function () {
         $reports = [
-            ['nama' => 'Laporan Realisasi Dana per Skema', 'periode' => 'T.A. 2026/2027 Genap', 'format' => 'PDF / XLSX', 'update' => '14 Okt 2026', 'icon' => 'chart'],
-            ['nama' => 'Laporan Pertanggungjawaban Mitra', 'periode' => 'Semester Berjalan',    'format' => 'PDF',        'update' => '10 Okt 2026', 'icon' => 'handshake'],
-            ['nama' => 'Rekapitulasi Penerima Beasiswa',   'periode' => 'T.A. 2026/2027 Genap', 'format' => 'XLSX',       'update' => '12 Okt 2026', 'icon' => 'users'],
-            ['nama' => 'Laporan Rekonsiliasi Bank',        'periode' => 'Bulanan',              'format' => 'PDF / XLSX', 'update' => '01 Okt 2026', 'icon' => 'bank'],
+            ['slug' => 'realization', 'nama' => 'Laporan Realisasi Dana per Skema', 'periode' => 'T.A. 2026/2027 Genap', 'format' => 'PDF / Excel', 'update' => now()->translatedFormat('d M Y'), 'icon' => 'chart'],
+            ['slug' => 'partners', 'nama' => 'Laporan Pertanggungjawaban Mitra', 'periode' => 'Semester Berjalan', 'format' => 'PDF / Excel', 'update' => now()->translatedFormat('d M Y'), 'icon' => 'handshake'],
+            ['slug' => 'recipients', 'nama' => 'Rekapitulasi Penerima Beasiswa', 'periode' => 'T.A. 2026/2027 Genap', 'format' => 'PDF / Excel', 'update' => now()->translatedFormat('d M Y'), 'icon' => 'users'],
+            ['slug' => 'reconciliation', 'nama' => 'Laporan Rekonsiliasi Bank', 'periode' => 'Bulanan', 'format' => 'PDF / Excel', 'update' => now()->translatedFormat('d M Y'), 'icon' => 'bank'],
+            ['slug' => 'audit', 'nama' => 'Laporan Audit Trail', 'periode' => 'Aktivitas sistem', 'format' => 'PDF / Excel', 'update' => now()->translatedFormat('d M Y'), 'icon' => 'audit'],
         ];
 
-        $auditLogs = [
-            ['waktu' => '14 Okt 2026 09:12', 'user' => 'admin.beasiswa',   'aksi' => 'Menyetujui batch penyaluran DSB-2026-G-003',    'modul' => 'Penyaluran'],
-            ['waktu' => '14 Okt 2026 08:47', 'user' => 'verifikator01',    'aksi' => 'Mengubah status REG-2026-0004 menjadi Ditolak', 'modul' => 'Seleksi'],
-            ['waktu' => '13 Okt 2026 16:30', 'user' => 'admin.beasiswa',   'aksi' => 'Memperbarui kuota skema BSW-MIT',               'modul' => 'Skema'],
-            ['waktu' => '13 Okt 2026 11:05', 'user' => 'kemitraan01',      'aksi' => 'Mengunggah addendum MoU/UKRI/033/2023',         'modul' => 'Kemitraan'],
-            ['waktu' => '12 Okt 2026 14:21', 'user' => 'auditor.internal', 'aksi' => 'Mengunduh Laporan Realisasi Dana',              'modul' => 'Pelaporan'],
-        ];
+        $auditQuery = AuditLog::query()->latest()->limit(50);
+        if (in_array(request('module'), ['Kemitraan', 'Skema', 'Seleksi', 'Penyaluran', 'Pelaporan'], true)) {
+            $auditQuery->where('module', request('module'));
+        }
+        $auditLogs = $auditQuery->get();
 
         return view('beasiswa.reports', compact('reports', 'auditLogs'));
     })->name('reports');
+    Route::get('/reports/{report}/{format}', [ReportExportController::class, 'export'])
+        ->where(['report' => 'realization|partners|recipients|reconciliation|audit', 'format' => 'pdf|xlsx'])
+        ->name('reports.export');
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
