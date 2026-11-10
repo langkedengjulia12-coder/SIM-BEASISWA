@@ -16,6 +16,7 @@ class Disbursement extends Model
         'disbursement_date',
         'bank_name',
         'account_number',
+        'batch_number',
         'reference_number',
         'status',
     ];
@@ -24,6 +25,7 @@ class Disbursement extends Model
         'application_id' => 'integer',
         'amount' => 'decimal:2',
         'disbursement_date' => 'date',
+        'account_number' => 'encrypted',
     ];
 
     public function application(): BelongsTo

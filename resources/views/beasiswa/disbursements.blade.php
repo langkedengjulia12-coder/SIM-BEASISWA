@@ -5,6 +5,21 @@
 @section('page-subtitle', 'Monitoring pencairan dana beasiswa dan pencocokan dengan mutasi bank')
 
 @section('content')
+@if (session('success'))
+    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+        {{ session('success') }}
+    </div>
+@endif
+@if ($errors->any())
+    <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
+        <p class="font-semibold">Data tidak diproses.</p>
+        <ul class="mt-1 list-inside list-disc">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 @php
     $tone = [
         'emerald' => 'border-t-red-600',
@@ -30,10 +45,30 @@
 <div class="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
     <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="font-semibold text-slate-800">Batch Penyaluran</h2>
-        <div class="flex gap-2">
-            <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Impor Mutasi Bank</button>
-            <button type="button" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">+ Buat Batch</button>
-        </div>
+        <a href="{{ route('beasiswa.disbursements.batch-template') }}" class="text-sm font-medium text-red-700 hover:text-red-800">Unduh template batch CSV</a>
+    </div>
+    <div class="grid gap-4 border-b border-slate-100 p-5 lg:grid-cols-2">
+        <form method="POST" action="{{ route('beasiswa.disbursements.batches.store') }}" enctype="multipart/form-data" class="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-end">
+            @csrf
+            <label class="flex-1 text-sm font-medium text-slate-700">
+                Buat batch dari pendaftar Lolos
+                <input type="file" name="file" required accept=".csv,text/csv" class="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2">
+                <span class="mt-1 block text-xs font-normal text-slate-500">CSV: registration_number, bank_name, account_number. Rekening disimpan terenkripsi.</span>
+            </label>
+            <button type="submit" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">+ Buat Batch</button>
+        </form>
+        <form method="POST" action="{{ route('beasiswa.disbursements.reconcile') }}" enctype="multipart/form-data" class="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-end">
+            @csrf
+            <label class="flex-1 text-sm font-medium text-slate-700">
+                Impor mutasi untuk rekonsiliasi
+                <input type="file" name="file" required accept=".csv,text/csv" class="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2">
+                <span class="mt-1 block text-xs font-normal text-slate-500">CSV: registration_number, amount, reference_number, status (success/failed).</span>
+            </label>
+            <div class="flex flex-col gap-2">
+                <a href="{{ route('beasiswa.disbursements.mutation-template') }}" class="text-xs font-medium text-red-700 hover:text-red-800">Unduh template mutasi</a>
+                <button type="submit" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Impor Mutasi Bank</button>
+            </div>
+        </form>
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
