@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
+use App\Models\AuditLog;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ApplicationController extends Controller
 {
@@ -15,6 +19,7 @@ class ApplicationController extends Controller
             ->get()
             ->map(static function (Application $application): array {
                 return [
+                    'id' => $application->id,
                     'no' => $application->registration_number,
                     'nama' => $application->user->name,
                     'nim' => $application->user->email,
@@ -42,5 +47,27 @@ class ApplicationController extends Controller
         ];
 
         return view('beasiswa.applications', compact('pipeline', 'applications'));
+    }
+
+    public function review(Request $request, Application $application): RedirectResponse
+    {
+        $validated = $request->validate([
+            'decision' => ['required', 'in:approved,rejected'],
+        ]);
+
+        DB::transaction(function () use ($application, $validated, $request): void {
+            $application->update([
+                'status' => $validated['decision'],
+            ]);
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'user_name' => $request->user()->name,
+                'action' => "Mengubah status pendaftar {$application->registration_number} menjadi {$validated['decision']}.",
+                'module' => 'Seleksi',
+            ]);
+        });
+
+        return back()->with('success', 'Status pendaftar berhasil diperbarui.');
     }
 }

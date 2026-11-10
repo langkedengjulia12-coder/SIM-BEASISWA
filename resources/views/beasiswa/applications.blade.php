@@ -5,6 +5,12 @@
 @section('page-subtitle', 'Pipeline seleksi calon penerima beasiswa T.A. 2026/2027 Genap')
 
 @section('content')
+@if (session('success'))
+    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        {{ session('success') }}
+    </div>
+@endif
+
 @php
     $badge = [
         'Baru'    => 'bg-slate-200 text-slate-700',
@@ -12,7 +18,7 @@
         'Lolos'   => 'bg-emerald-100 text-emerald-800',
         'Ditolak' => 'bg-rose-100 text-rose-800',
     ];
-    $maxPipeline = max(array_column($pipeline, 'jumlah'));
+    $maxPipeline = max(1, max(array_column($pipeline, 'jumlah')));
 @endphp
 
 {{-- PIPELINE --}}
@@ -80,7 +86,12 @@
                             <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $badge[$a['status']] ?? 'bg-slate-100 text-slate-700' }}">{{ $a['status'] }}</span>
                         </td>
                         <td class="px-5 py-3 text-right">
-                            <button type="button" class="rounded-md bg-red-700 px-3 py-1 text-xs font-semibold text-white hover:bg-red-800">Review</button>
+                            <form method="POST" action="{{ route('beasiswa.applications.review', $a['id']) }}" class="inline-flex gap-1">
+                                @csrf
+                                @method('PATCH')
+                                <button name="decision" value="approved" class="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">Lolos</button>
+                                <button name="decision" value="rejected" onclick="return confirm('Tolak pendaftar ini?')" class="rounded-md bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700">Tolak</button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach
