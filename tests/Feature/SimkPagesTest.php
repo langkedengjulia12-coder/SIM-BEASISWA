@@ -2,14 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\Kamar;
-use App\Models\Penyewa;
-use App\Models\Transaksi;
-use App\Models\User;
+use App\Models\Pengguna;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
+/** Smoke test: setiap halaman tiap peran dapat dirender dengan data demo (seeder). */
 class SimkPagesTest extends TestCase
 {
     use RefreshDatabase;
@@ -17,182 +15,59 @@ class SimkPagesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        Role::firstOrCreate(['name' => 'admin']);
-        Role::firstOrCreate(['name' => 'pengelola']);
-        Role::firstOrCreate(['name' => 'penyewa']);
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        Storage::fake('local');
+        $this->seed();
     }
 
-    public function test_admin_can_view_kamar_index_and_create_pages(): void
+    private function user(string $username): Pengguna
     {
-        $user = User::factory()->create();
-        $user->assignRole('admin');
-
-        $this->actingAs($user)->get(route('simk.kamar.index'))->assertStatus(200);
-        $this->actingAs($user)->get(route('simk.kamar.create'))->assertStatus(200);
+        return Pengguna::where('username', $username)->firstOrFail();
     }
 
-    public function test_admin_can_view_penyewa_index_and_create_pages(): void
+    public function test_halaman_admin_wr3(): void
     {
-        $user = User::factory()->create();
-        $user->assignRole('admin');
-
-        Kamar::create([
-            'nomor_kamar' => 'B-01',
-            'nama_kamar' => 'Kamar B',
-            'tipe' => 'standar',
-            'harga_sewa' => 900000,
-            'luas_m2' => 20,
-            'lantai' => 1,
-            'status' => 'tersedia',
-        ]);
-
-        $this->actingAs($user)->get(route('simk.penyewa.index'))->assertStatus(200);
-        $this->actingAs($user)->get(route('simk.penyewa.create'))->assertStatus(200);
+        $a = $this->user('admin.wr3');
+        foreach (['/admin/dashboard', '/pengguna', '/mitra', '/kontrak', '/komitmen', '/skema', '/seleksi/verifikasi',
+            '/seleksi/penilaian', '/seleksi/penetapan', '/penyaluran', '/laporan', '/ekspor', '/monitoring', '/notifikasi'] as $url) {
+            $this->actingAs($a)->get($url)->assertOk();
+        }
     }
 
-    public function test_admin_role_user_can_access_admin_dashboard(): void
+    public function test_halaman_staf_beasiswa_dan_detail(): void
     {
-        $user = User::factory()->create();
-        $user->assignRole('admin');
+        $s = $this->user('staf.beasiswa');
+        $this->actingAs($s)->get('/beranda')->assertOk();
 
-        $this->actingAs($user)->get(route('admin.dashboard'))->assertStatus(200);
+        $skema = \App\Models\SkemaBeasiswa::where('status', 'dibuka')->first();
+        $this->actingAs($s)->get('/seleksi/penilaian?skema='.$skema->id_skema)->assertOk();
+        $this->actingAs($s)->get('/seleksi/penetapan?skema='.$skema->id_skema)->assertOk();
+
+        $lalu = \App\Models\SkemaBeasiswa::where('nama_skema', 'like', '%Semester Lalu%')->first();
+        $this->actingAs($s)->get('/penyaluran?skema='.$lalu->id_skema.'&termin=1')->assertOk()->assertSee('Data rekening penerima belum lengkap.');
+
+        $p = \App\Models\Pendaftaran::where('status', 'diajukan')->first();
+        $this->actingAs($s)->get('/seleksi/verifikasi/'.$p->id_pendaftaran)->assertOk()->assertSee('Buka berkas');
     }
 
-    public function test_penyewa_dashboard_shows_bill_and_available_room_info(): void
+    public function test_halaman_mahasiswa(): void
     {
-        $user = User::factory()->create();
-        $user->assignRole('penyewa');
-
-        $kamar = Kamar::create([
-            'nomor_kamar' => 'A-01',
-            'nama_kamar' => 'Kamar A',
-            'tipe' => 'standar',
-            'harga_sewa' => 800000,
-            'luas_m2' => 18,
-            'lantai' => 1,
-            'status' => 'tersedia',
-        ]);
-
-        $penyewa = Penyewa::create([
-            'kamar_id' => $kamar->id,
-            'user_id' => $user->id,
-            'nama_lengkap' => 'Penyewa Uji',
-            'nik' => '1234567890123456',
-            'no_hp' => '081234567890',
-            'email' => 'penyewa@example.com',
-            'jenis_kelamin' => 'L',
-            'alamat_asal' => 'Alamat test',
-            'tanggal_masuk' => now()->toDateString(),
-            'kontrak_mulai' => now()->toDateString(),
-            'kontrak_selesai' => now()->addMonths(3)->toDateString(),
-            'status' => 'aktif',
-            'durasi_kontrak_bulan' => 3,
-        ]);
-
-        Transaksi::create([
-            'penyewa_id' => $penyewa->id,
-            'kamar_id' => $kamar->id,
-            'dibuat_oleh' => $user->id,
-            'jenis' => 'sewa',
-            'keterangan' => 'Tagihan bulan ini',
-            'jumlah' => 800000,
-            'tanggal_tagihan' => now()->toDateString(),
-            'jatuh_tempo' => now()->addDays(7)->toDateString(),
-            'status' => 'belum_bayar',
-            'periode_bulan' => now()->month,
-            'periode_tahun' => now()->year,
-        ]);
-
-        $response = $this->actingAs($user)->get(route('penyewa.dashboard'));
-
-        $response->assertStatus(200);
-        $response->assertSeeText('Tagihan Bulan Ini');
-        $response->assertSeeText('Kamar Kosong');
-        $response->assertSeeText('Tunggakan');
+        $m = $this->user('mhs5');   // penerima semester lalu dengan penyaluran tersalurkan
+        $this->actingAs($m)->get('/pendaftaran/status')->assertOk();
+        $this->actingAs($m)->get('/pendaftaran')->assertOk()->assertSee('Beasiswa Prestasi Akademik 2026');
+        $this->actingAs($m)->get('/penyaluran/saya')->assertOk()->assertSee('Saya sudah menerima');
+        $this->actingAs($m)->get('/profil')->assertOk()->assertSee('******7890');
     }
 
-    public function test_tenant_is_redirected_to_dashboard_from_home_page(): void
+    public function test_halaman_mahasiswa_tanpa_pendaftaran_menampilkan_pesan_kosong(): void
     {
-        $user = User::factory()->create();
-        $user->assignRole('penyewa');
-
-        $this->actingAs($user)->get(route('home'))->assertRedirect(route('penyewa.dashboard'));
+        $this->actingAs($this->user('mhs7'))->get('/pendaftaran/status')->assertOk()->assertSee('Anda belum memiliki pendaftaran');
     }
 
-    public function test_tenant_can_select_available_room_from_dashboard(): void
+    public function test_halaman_mitra(): void
     {
-        $user = User::factory()->create();
-        $user->assignRole('penyewa');
-
-        $kamar = Kamar::create([
-            'nomor_kamar' => 'C-01',
-            'nama_kamar' => 'Kamar C',
-            'tipe' => 'standar',
-            'harga_sewa' => 850000,
-            'luas_m2' => 20,
-            'lantai' => 2,
-            'status' => 'tersedia',
-        ]);
-
-        $penyewa = Penyewa::create([
-            'kamar_id' => null,
-            'user_id' => $user->id,
-            'nama_lengkap' => 'Penyewa Pilih Kamar',
-            'nik' => '1234567890123456',
-            'no_hp' => '081234567890',
-            'email' => 'pilihkamar@example.com',
-            'jenis_kelamin' => 'L',
-            'alamat_asal' => 'Alamat test',
-            'tanggal_masuk' => now()->toDateString(),
-            'kontrak_mulai' => now()->toDateString(),
-            'kontrak_selesai' => now()->addMonths(3)->toDateString(),
-            'status' => 'aktif',
-            'durasi_kontrak_bulan' => 3,
-        ]);
-
-        $this->actingAs($user)
-            ->post(route('penyewa.kamar.pilih', $kamar))
-            ->assertRedirect(route('penyewa.dashboard'));
-
-        $penyewa->refresh();
-        $this->assertSame($kamar->id, $penyewa->kamar_id);
-        $this->assertSame('terisi', $kamar->fresh()->status);
-    }
-
-    public function test_dashboard_and_penyewa_pages_render_when_penyewa_has_no_user(): void
-    {
-        $user = User::factory()->create();
-        $user->assignRole('admin');
-
-        $kamar = Kamar::create([
-            'nomor_kamar' => 'B-02',
-            'nama_kamar' => 'Kamar B 2',
-            'tipe' => 'standar',
-            'harga_sewa' => 950000,
-            'luas_m2' => 22,
-            'lantai' => 1,
-            'status' => 'tersedia',
-        ]);
-
-        Penyewa::create([
-            'kamar_id' => $kamar->id,
-            'user_id' => null,
-            'nama_lengkap' => 'Tanpa User',
-            'nik' => '1234567890123456',
-            'no_hp' => '081234567890',
-            'email' => 'tanpauser@example.com',
-            'jenis_kelamin' => 'L',
-            'alamat_asal' => 'Alamat test',
-            'tanggal_masuk' => now()->toDateString(),
-            'kontrak_mulai' => now()->toDateString(),
-            'kontrak_selesai' => now()->addMonths(3)->toDateString(),
-            'status' => 'aktif',
-            'durasi_kontrak_bulan' => 3,
-        ]);
-
-        $this->actingAs($user)->get(route('simk.dashboard'))->assertStatus(200);
-        $this->actingAs($user)->get(route('simk.penyewa.index'))->assertStatus(200);
+        $mitra = Pengguna::where('role', 'mitra')->first();
+        $this->actingAs($mitra)->get('/laporan')->assertOk();
+        $this->actingAs($mitra)->get('/komitmen')->assertOk()->assertSee('Total Komitmen');
+        $this->actingAs($mitra)->get('/mitra')->assertRedirect(route('dashboard'));
     }
 }

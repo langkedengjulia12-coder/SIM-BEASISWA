@@ -1,107 +1,130 @@
 <?php
 
-use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\DisbursementController;
-use App\Http\Controllers\Mahasiswa\DashboardController as MahasiswaDashboardController;
-use App\Http\Controllers\Admin\PartnerController;
-use App\Http\Controllers\Admin\SchemeController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DokumenController;
+use App\Http\Controllers\EksporController;
+use App\Http\Controllers\KomitmenController;
+use App\Http\Controllers\KontrakController;
+use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\MitraController;
+use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\NotifikasiController;
+use App\Http\Controllers\PendaftaranController;
+use App\Http\Controllers\PenetapanController;
+use App\Http\Controllers\PenggunaController;
+use App\Http\Controllers\PenilaianController;
+use App\Http\Controllers\PenyaluranController;
+use App\Http\Controllers\ProfilMahasiswaController;
+use App\Http\Controllers\SkemaController;
+use App\Http\Controllers\VerifikasiController;
 use Illuminate\Support\Facades\Route;
 
-// ============================================
-// Route Public
-// ============================================
-// Halaman awal diarahkan ke Dashboard Eksekutif SIM-BEASISWA UKRI
-Route::get('/', function () {
-    return redirect()->route('beasiswa.dashboard');
-})->name('home');
+/*
+|--------------------------------------------------------------------------
+| Rute SIM-BEASISWA UKRI - mengikuti SKPL OO (P-01 s.d. P-18)
+|--------------------------------------------------------------------------
+| Peran: admin_wr3 | staf_beasiswa | mahasiswa | mitra
+| Admin WR3 otomatis lolos seluruh rute staf_beasiswa.
+*/
 
-// ============================================
-// Route Auth (Laravel Breeze)
-// ============================================
 require __DIR__.'/auth.php';
 
-// ============================================
-// Portal Mahasiswa UKRI
-// ============================================
-Route::middleware(['auth', 'role:mahasiswa'])->prefix('mahasiswa')->name('mahasiswa.')->group(function () {
-    Route::get('/dashboard', [MahasiswaDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/panduan-sk', [MahasiswaDashboardController::class, 'downloadGuide'])->name('guide.download');
-    Route::post('/konfirmasi-mutasi', [MahasiswaDashboardController::class, 'storeConfirmation'])->name('confirmation.store');
-    Route::post('/skema/{scheme}/daftar', [MahasiswaDashboardController::class, 'applyScheme'])->name('daftar');
-});
+Route::get('/', fn () => redirect()->route('dashboard'))->name('home');
 
-// ============================================
-// Route Beasiswa UKRI
-// ============================================
-Route::middleware(['auth', 'role:admin'])->prefix('beasiswa')->name('beasiswa.')->group(function () {
+Route::middleware('auth')->group(function () {
 
-    // 1. Dashboard Eksekutif
-    Route::get('/dashboard', function () {
-        $stats = [
-            ['label' => 'Total Mitra Aktif',         'value' => '24',        'note' => '+3 sepanjang 2026',      'tone' => 'emerald'],
-            ['label' => 'Penerima Beasiswa Aktif',   'value' => '1.248',     'note' => '+86 dari semester lalu', 'tone' => 'amber'],
-            ['label' => 'Total Dana Tersalur',       'value' => 'Rp 8,75 M', 'note' => '72% dari alokasi',       'tone' => 'emerald'],
-            ['label' => 'Pendaftar Menunggu Seleksi', 'value' => '312',       'note' => '45 perlu verifikasi',    'tone' => 'amber'],
-        ];
+    Route::get('/dashboard', [DashboardController::class, 'arahkan'])->name('dashboard');
 
-        $recentApplications = [
-            ['nama' => 'Aulia Rahmawati',    'nim' => '2201010011', 'prodi' => 'Teknik Informatika', 'skema' => 'Beasiswa Prestasi Akademik', 'status' => 'Verifikasi'],
-            ['nama' => 'Bagas Pratama',      'nim' => '2201020034', 'prodi' => 'Manajemen',          'skema' => 'Beasiswa KIP Kuliah',        'status' => 'Wawancara'],
-            ['nama' => 'Citra Lestari',      'nim' => '2201030057', 'prodi' => 'Akuntansi',          'skema' => 'Beasiswa Mitra Industri',    'status' => 'Lolos'],
-            ['nama' => 'Dimas Nugraha',      'nim' => '2201040078', 'prodi' => 'Teknik Sipil',       'skema' => 'Beasiswa Prestasi Akademik', 'status' => 'Ditolak'],
-            ['nama' => 'Eka Putri Wulandari', 'nim' => '2201050092', 'prodi' => 'Ilmu Hukum',         'skema' => 'Beasiswa Yatim Piatu',       'status' => 'Verifikasi'],
-        ];
+    // Notifikasi (UC-18) - semua peran
+    Route::get('/notifikasi', [NotifikasiController::class, 'index'])->name('notifikasi.index');
+    Route::post('/notifikasi/baca-semua', [NotifikasiController::class, 'bacaSemua'])->name('notifikasi.baca-semua');
+    Route::post('/notifikasi/{id}/baca', [NotifikasiController::class, 'baca'])->whereNumber('id')->name('notifikasi.baca');
 
-        $fundBySource = [
-            ['sumber' => 'APBU / Internal UKRI', 'persen' => 45],
-            ['sumber' => 'Mitra Korporasi',      'persen' => 35],
-            ['sumber' => 'Pemerintah / KIP-K',   'persen' => 15],
-            ['sumber' => 'Donasi Alumni',        'persen' => 5],
-        ];
+    // ---------------- Admin WR3 ----------------
+    Route::middleware('role:admin_wr3')->group(function () {
+        Route::get('/admin/dashboard', [DashboardController::class, 'ringkasan'])->name('dashboard.admin');   // P-16
+        Route::get('/pengguna', [PenggunaController::class, 'index'])->name('pengguna.index');               // P-17
+        Route::post('/pengguna', [PenggunaController::class, 'store'])->name('pengguna.store');
+        Route::put('/pengguna/{pengguna}', [PenggunaController::class, 'update'])->name('pengguna.update');
+    });
 
-        $alerts = [
-            ['text' => 'MoU dengan Yayasan Cahaya Bangsa berakhir dalam 28 hari.', 'level' => 'warning'],
-            ['text' => '12 data rekening penerima belum tervalidasi.',             'level' => 'danger'],
-            ['text' => 'Batas verifikasi berkas gelombang II: 30 hari lagi.',      'level' => 'info'],
-        ];
+    // ---------------- Staf Unit Beasiswa (+ Admin WR3) ----------------
+    Route::middleware('role:staf_beasiswa')->group(function () {
+        Route::get('/beranda', [DashboardController::class, 'beranda'])->name('beranda');
 
-        return view('beasiswa.dashboard', compact('stats', 'recentApplications', 'fundBySource', 'alerts'));
-    })->name('dashboard');
+        // P-02 Mitra & Donor
+        Route::get('/mitra', [MitraController::class, 'index'])->name('mitra.index');
+        Route::post('/mitra', [MitraController::class, 'store'])->name('mitra.store');
+        Route::put('/mitra/{mitra}', [MitraController::class, 'update'])->name('mitra.update');
+        Route::post('/mitra/{mitra}/verifikasi', [MitraController::class, 'verifikasi'])->name('mitra.verifikasi');
 
-    // 2. Manajemen Kemitraan & MoU
-    Route::get('/partners', [PartnerController::class, 'index'])->name('partners');
+        // P-03 Kontrak
+        Route::get('/kontrak', [KontrakController::class, 'index'])->name('kontrak.index');
+        Route::post('/kontrak', [KontrakController::class, 'store'])->name('kontrak.store');
+        Route::post('/kontrak/{kontrak}/aktifkan', [KontrakController::class, 'aktifkan'])->name('kontrak.aktifkan');
+        Route::post('/kontrak/{kontrak}/perpanjang', [KontrakController::class, 'perpanjang'])->name('kontrak.perpanjang');
+        Route::get('/kontrak/{kontrak}/berkas', [KontrakController::class, 'berkas'])->name('kontrak.berkas');
 
-    // 3. Skema Beasiswa
-    Route::get('/schemes', [SchemeController::class, 'index'])->name('schemes');
+        // P-04 Komitmen (tambah & catat penerimaan)
+        Route::post('/komitmen', [KomitmenController::class, 'store'])->name('komitmen.store');
+        Route::post('/komitmen/{komitmen}/penerimaan', [KomitmenController::class, 'catatPenerimaan'])->name('komitmen.penerimaan');
 
-    // 4. Seleksi & Pendaftaran
-    Route::get('/applications', [ApplicationController::class, 'index'])->name('applications');
+        // P-05 Skema
+        Route::get('/skema', [SkemaController::class, 'index'])->name('skema.index');
+        Route::post('/skema', [SkemaController::class, 'store'])->name('skema.store');
+        Route::put('/skema/{skema}', [SkemaController::class, 'update'])->name('skema.update');
+        Route::post('/skema/{skema}/buka', [SkemaController::class, 'buka'])->name('skema.buka');
+        Route::post('/skema/{skema}/tutup', [SkemaController::class, 'tutup'])->name('skema.tutup');
+        Route::post('/skema/{skema}/selesai', [SkemaController::class, 'selesai'])->name('skema.selesai');
 
-    // 5. Penyaluran & Rekonsiliasi
-    Route::get('/disbursements', [DisbursementController::class, 'index'])->name('disbursements');
+        // P-07 Verifikasi berkas
+        Route::get('/seleksi/verifikasi', [VerifikasiController::class, 'index'])->name('verifikasi.index');
+        Route::get('/seleksi/verifikasi/{pendaftaran}', [VerifikasiController::class, 'show'])->name('verifikasi.show');
+        Route::post('/seleksi/verifikasi/{pendaftaran}', [VerifikasiController::class, 'simpanHasil'])->name('verifikasi.simpan');
 
-    // 6. Pelaporan & Audit
-    Route::get('/reports', function () {
-        $reports = [
-            ['nama' => 'Laporan Realisasi Dana per Skema', 'periode' => 'T.A. 2026/2027 Genap', 'format' => 'PDF / XLSX', 'update' => '14 Okt 2026', 'icon' => 'chart'],
-            ['nama' => 'Laporan Pertanggungjawaban Mitra', 'periode' => 'Semester Berjalan',    'format' => 'PDF',        'update' => '10 Okt 2026', 'icon' => 'handshake'],
-            ['nama' => 'Rekapitulasi Penerima Beasiswa',   'periode' => 'T.A. 2026/2027 Genap', 'format' => 'XLSX',       'update' => '12 Okt 2026', 'icon' => 'users'],
-            ['nama' => 'Laporan Rekonsiliasi Bank',        'periode' => 'Bulanan',              'format' => 'PDF / XLSX', 'update' => '01 Okt 2026', 'icon' => 'bank'],
-        ];
+        // P-08 Penilaian & ranking
+        Route::get('/seleksi/penilaian', [PenilaianController::class, 'index'])->name('penilaian.index');
+        Route::post('/seleksi/penilaian/{skema}', [PenilaianController::class, 'hitung'])->name('penilaian.hitung');
 
-        $auditLogs = [
-            ['waktu' => '14 Okt 2026 09:12', 'user' => 'admin.beasiswa',   'aksi' => 'Menyetujui batch penyaluran DSB-2026-G-003',    'modul' => 'Penyaluran'],
-            ['waktu' => '14 Okt 2026 08:47', 'user' => 'verifikator01',    'aksi' => 'Mengubah status REG-2026-0004 menjadi Ditolak', 'modul' => 'Seleksi'],
-            ['waktu' => '13 Okt 2026 16:30', 'user' => 'admin.beasiswa',   'aksi' => 'Memperbarui kuota skema BSW-MIT',               'modul' => 'Skema'],
-            ['waktu' => '13 Okt 2026 11:05', 'user' => 'kemitraan01',      'aksi' => 'Mengunggah addendum MoU/UKRI/033/2023',         'modul' => 'Kemitraan'],
-            ['waktu' => '12 Okt 2026 14:21', 'user' => 'auditor.internal', 'aksi' => 'Mengunduh Laporan Realisasi Dana',              'modul' => 'Pelaporan'],
-        ];
+        // P-09 Penetapan & pengumuman
+        Route::get('/seleksi/penetapan', [PenetapanController::class, 'index'])->name('penetapan.index');
+        Route::post('/seleksi/penetapan/{skema}', [PenetapanController::class, 'tetapkan'])->name('penetapan.tetapkan');
 
-        return view('beasiswa.reports', compact('reports', 'auditLogs'));
-    })->name('reports');
-});
+        // P-11 Penyaluran
+        Route::get('/penyaluran', [PenyaluranController::class, 'index'])->name('penyaluran.index');
+        Route::post('/penyaluran/salurkan', [PenyaluranController::class, 'salurkan'])->name('penyaluran.salurkan');
 
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('partners', PartnerController::class)->except(['create', 'show', 'edit']);
-    Route::resource('schemes', SchemeController::class)->except(['create', 'show', 'edit']);
+        // P-14 Ekspor
+        Route::get('/ekspor', [EksporController::class, 'index'])->name('ekspor.index');
+        Route::post('/ekspor', [EksporController::class, 'proses'])->name('ekspor.proses');
+
+        // P-15 Monitoring akademik
+        Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+        Route::post('/monitoring', [MonitoringController::class, 'perbarui'])->name('monitoring.perbarui');
+    });
+
+    // Staf + Mitra: P-04 (lihat komitmen) & P-13 (laporan)
+    Route::middleware('role:staf_beasiswa,mitra')->group(function () {
+        Route::get('/komitmen', [KomitmenController::class, 'index'])->name('komitmen.index');
+        Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+        Route::post('/laporan', [LaporanController::class, 'tampil'])->name('laporan.tampil');
+        Route::get('/laporan/{laporan}/unduh', [LaporanController::class, 'unduh'])->name('laporan.unduh');
+    });
+
+    // ---------------- Mahasiswa ----------------
+    Route::middleware('role:mahasiswa')->group(function () {
+        Route::get('/pendaftaran', [PendaftaranController::class, 'form'])->name('pendaftaran.form');              // P-06
+        Route::post('/pendaftaran', [PendaftaranController::class, 'kirim'])->name('pendaftaran.kirim');
+        Route::get('/pendaftaran/status', [PendaftaranController::class, 'statusSaya'])->name('pendaftaran.status'); // P-10
+        Route::post('/pendaftaran/{pendaftaran}/perbaiki', [PendaftaranController::class, 'perbaiki'])->name('pendaftaran.perbaiki');
+
+        Route::get('/penyaluran/saya', [PenyaluranController::class, 'saya'])->name('penyaluran.saya');            // P-12
+        Route::post('/penyaluran/{penyaluran}/konfirmasi', [PenyaluranController::class, 'konfirmasi'])->name('penyaluran.konfirmasi');
+
+        Route::get('/profil', [ProfilMahasiswaController::class, 'edit'])->name('profil.edit');
+        Route::put('/profil', [ProfilMahasiswaController::class, 'update'])->name('profil.update');
+    });
+
+    // Unduh dokumen pendaftaran (staf atau pemilik; otorisasi di controller)
+    Route::get('/dokumen/{dokumen}', [DokumenController::class, 'unduh'])->name('dokumen.unduh');
 });
